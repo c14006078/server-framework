@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <semaphore.h>
 
 /* suppress compilation warnings */
 static inline ssize_t write_wrapper(int fd, const void *buf, size_t count)
@@ -50,7 +51,7 @@ struct AsyncTask {
 /** The Async struct */
 struct Async {
     /** the task queue - MUST be first in the struct */
-    pthread_mutex_t lock;              /**< a mutex for data integrity */
+    sem_t lock;              /**< a mutex for data integrity */
     struct AsyncTask * volatile tasks;  /**< active tasks */
     struct AsyncTask * volatile pool;   /**< a task node pool */
     struct AsyncTask ** volatile pos;   /**< the position for new tasks */
@@ -78,7 +79,7 @@ static int async_run(async_p async, void (*task)(void *), void *arg)
 
     if (!async || !task) return -1;
 
-    pthread_mutex_lock(&(async->lock));
+    sem_trywait(&(async->lock));
     /* get a container from the pool of grab a new container */
     if (async->pool) {
         c = async->pool;
@@ -86,7 +87,7 @@ static int async_run(async_p async, void (*task)(void *), void *arg)
     } else {
         c = malloc(sizeof(*c));
         if (!c) {
-            pthread_mutex_unlock(&async->lock);
+            sem_post(&async->lock);
             return -1;
         }
     }
@@ -99,7 +100,7 @@ static int async_run(async_p async, void (*task)(void *), void *arg)
         async->tasks = c;
     }
     async->pos = &(c->next);
-    pthread_mutex_unlock(&async->lock);
+    sem_post(&async->lock);
     /* wake up any sleeping threads
      * any activated threads will ask to require the mutex
      * as soon as we write.
@@ -116,7 +117,7 @@ static void perform_tasks(async_p async)
     struct AsyncTask *c = NULL;  /* c == container, will store the task */
     do {
         /* grab a task from the queue. */
-        pthread_mutex_lock(&(async->lock));
+        sem_trywait(&(async->lock));
         /* move the old task container to the pool. */
         if (c) {
             c->next = async->pool;
@@ -127,7 +128,7 @@ static void perform_tasks(async_p async)
             /* move the queue forward. */
             async->tasks = async->tasks->next;
         }
-        pthread_mutex_unlock(&(async->lock));
+        sem_post(&(async->lock));
         /* perform the task */
         if (c) c->task(c->arg);
     } while (c);
@@ -192,7 +193,7 @@ static void async_finish(async_p async)
 /** Destroys the Async object, releasing its memory. */
 static void async_destroy(async_p async)
 {
-    pthread_mutex_lock(&async->lock);
+    sem_trywait(&async->lock);
     struct AsyncTask *to_free;
     async->pos = NULL;
     /* free all tasks */
@@ -218,8 +219,8 @@ static void async_destroy(async_p async)
         close(async->pipe.out);
         async->pipe.out = 0;
     }
-    pthread_mutex_unlock(&async->lock);
-    pthread_mutex_destroy(&async->lock);
+    sem_post(&async->lock);
+    sem_destroy(&async->lock);
     free(async);
 }
 
@@ -230,7 +231,7 @@ static async_p async_create(int threads)
     async->pool = NULL;
     async->pipe.in = 0;
     async->pipe.out = 0;
-    if (pthread_mutex_init(&(async->lock), NULL)) {
+    if (sem_init(&(async->lock), 0, 1)) {
         free(async);
         return NULL;
     };
