@@ -79,7 +79,7 @@ static int async_run(async_p async, void (*task)(void *), void *arg)
 
     if (!async || !task) return -1;
 
-    sem_trywait(&(async->lock));
+    sem_wait(&(async->lock));
     /* get a container from the pool of grab a new container */
     if (async->pool) {
         c = async->pool;
@@ -117,7 +117,7 @@ static void perform_tasks(async_p async)
     struct AsyncTask *c = NULL;  /* c == container, will store the task */
     do {
         /* grab a task from the queue. */
-        sem_trywait(&(async->lock));
+        sem_wait(&(async->lock));
         /* move the old task container to the pool. */
         if (c) {
             c->next = async->pool;
@@ -193,7 +193,7 @@ static void async_finish(async_p async)
 /** Destroys the Async object, releasing its memory. */
 static void async_destroy(async_p async)
 {
-    sem_trywait(&async->lock);
+    sem_wait(&async->lock);
     struct AsyncTask *to_free;
     async->pos = NULL;
     /* free all tasks */
