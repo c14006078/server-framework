@@ -60,7 +60,7 @@ int main(void)
     /* create the thread pool with a single threads.
      * the callback is optional (we can pass NULL)
      */
-    async_p async = Async.create(8);
+    async_p async = Async.create(16);
     if (!async) {
         perror("Async creation failed");
         exit(1);

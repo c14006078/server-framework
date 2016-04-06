@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define THREAD_COUNT 1
+#define THREAD_COUNT 16
 
 #include "protocol-server.h"
 
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 {
     struct Protocol protocol = { .on_data = on_data };
     start_server(.protocol = &protocol,
-                 .timeout = 2,
+                 .timeout = 1,
                  .on_init = on_init,
                  .threads = THREAD_COUNT);
     return 0;

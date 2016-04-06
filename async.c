@@ -29,7 +29,7 @@ static void async_destroy(async_p queue);
 
 static void *join_thread(pthread_t thr)
 {
-    void *ret;
+    void *ret;/*TODO:why dont set NULL*/
     pthread_join(thr, &ret);
     return ret;
 }
@@ -62,6 +62,7 @@ struct Async {
         int out; /**< write opaque data (single byte),
                       used for wakeup signaling */
     } pipe;
+    /*TODO: we can use async_p->pipe.out  */
 
     int count; /**< the number of initialized threads */
 
@@ -107,7 +108,7 @@ static int async_run(async_p async, void (*task)(void *), void *arg)
      * we need to unlock before we write, or we will have excess
      * context switches.
      */
-    write(async->pipe.out, c->task, 1);
+    write(async->pipe.out, c->task, 1);/*TODO：what`s that*/
     return 0;
 }
 
@@ -146,7 +147,7 @@ static void *worker_thread_cycle(void *_async)
     /* pause for signal for as long as we're active. */
     while (async->run && (read(async->pipe.in, &sig_buf, 1) >= 0)) {
         perform_tasks(async);
-        sched_yield();
+        sched_yield();/*TODO:what is that*/
     }
 
     perform_tasks(async);
@@ -226,7 +227,7 @@ static void async_destroy(async_p async)
 
 static async_p async_create(int threads)
 {
-    async_p async = malloc(sizeof(*async) + (threads * sizeof(pthread_t)));
+    async_p async = malloc(sizeof(*async) + (threads * sizeof(pthread_t)));/*TODO：thread num*/
     async->tasks = NULL;
     async->pool = NULL;
     async->pipe.in = 0;
@@ -235,7 +236,7 @@ static async_p async_create(int threads)
         free(async);
         return NULL;
     };
-    if (pipe((int *) &(async->pipe))) {
+    if (pipe((int *) &(async->pipe))) {/*TODO: understand pipe operation*/
         free(async);
         return NULL;
     };
